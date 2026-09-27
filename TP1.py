@@ -2,8 +2,6 @@
 import sys
 import json
 from pathlib import Path
-from PySide6.QtCore import Qt
-#from PySide6.QtGui import QGuiApplication, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -12,64 +10,69 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QWidget,
     QVBoxLayout,
-    QCompleter
+    QFileDialog
 )
 
-# json_file = sys.argv[0]
-# print(json_file)
-
-
-#Find json files
-path = Path(__file__).parent / "data_small.json"
-path_large = Path(__file__).parent / "data_large.json"
-
-with path.open("r", encoding="utf-8") as fichier:
-    data_small = json.load(fichier)
-
-with path_large.open("r", encoding="utf-8") as fichier:
-    data_large = json.load(fichier)
-
-
-#Question déterminant quel type de tableau sera affiché 
-choice = str(input("What type of data would you like to sort (large or small) ?"))
-
-#region TEST
-# try:
-#     file = open(json_file)
-#     data = json.load(file)
-#     print(type(data))
-# except:
-#     print(f"Could not load data from {json_file}")
-
-
-# #Récupération de mes données
-# for i in data_small:
-#     print("Keys\n")
-#     for k in i.keys():
-#         print(f"        - {k}")
-#     print("\n")
-#     print("Values\n")
-#     for v in i.values():
-#         print(f"        - {v}")
-#     print("\n")
-#     print("Items\n")
-#     for e in i.items():
-#         print(f"        - {e}")
-#     print("\n")
-#endregion
-
-##A FAIRE
-#json.decoder.JSONDecodeError
-
-#création d'une interface
 app = QApplication([])
+
+#Ouverture de l'explorateur de fichier permettant de sélectionner un JSON
+json_path, _ = QFileDialog.getOpenFileName(None, "Selectionner le fichier JSON", 
+                                           "","Fichiers JSON (*.json)")
+
+path = Path(json_path)
+
+# Message d'erreur si utilisateur annule la sélection
+if not json_path:
+    print("Aucun fichier selectionné.")
+    sys.exit()
+
+# Messgae d'erreur si le chemin est incorrect/inexistant
+if not path.exists():
+    print("Erreur, fichier inexistant.")
+    sys.exit()
+
+# Ouverture et lecture du fichier 
+# Interprétation du fichier
+try:
+    with path.open("r", encoding="utf-8") as fichier:
+        data = json.load(fichier)
+
+# Erreur si incapable de lire le fichier
+except json.JSONDecodeError:
+    print("Erreur, ceci n'est pas un JSON fonctionnel.")
+    sys.exit()
+
+# Message d'erreur pour tout autre problème 
+except Exception as j:
+    print(f"Erreur, ouverture du fichier {j} impossible")
+    sys.exit()
+
+# Va chercher le nom du fichier
+# Convertis tout les lettres en minuscules
+filename = path.stem.lower()
+
+# Vérifie/cherche le mot "small" dans le fichier
+if "small" in filename:
+    choice = "small"
+
+# Sinon, vérifie/cherche avec le mot "large"
+elif "large" in filename:
+    choice = "large"
+
+# Message d'erreur
+else:
+    print("Erreur, le fichier doit contenir 'large' ou 'small' pour poursuivre")
+    sys.exit()
+
+#Création de l'interface principale
 window = QMainWindow();
 window.setWindowTitle("Visualisation données")
 window.resize(1050, 600)
 
+# Création d'un container pour mettre mes éléments (tableau, barre de recherche)
 container = QWidget()
+# Met les éléments dans une interface verticale
 layout = QVBoxLayout(container)
-
 
 #Affichage de la barre de recherche
 searchbar = QLineEdit()
@@ -77,20 +80,24 @@ searchbar.setPlaceholderText("Search...")
 layout.addWidget(searchbar)
 
 
-
-
-
 #Configuration de l'interface du tableau visuel (SMALL)
-if choice in ["small", "Small"]:
+if choice == "small":
     tableau = QTableWidget()
-    tableau.setRowCount(len(data_small))
+    tableau.setRowCount(len(data))
     tableau.setColumnCount(6)
-    tableau.setHorizontalHeaderLabels(["id", "nom", "categorie", "format", "polygones", "statut"])
+    # Titres des en-têtes
+    tableau.setHorizontalHeaderLabels([
+        "id", 
+        "nom", 
+        "categorie", 
+        "format", 
+        "polygones", 
+        "statut"
+    ])
 
-
-    #Affichage des données (SMALL)
-    for i in range(len(data_small)):
-        item = data_small[i]
+    # Affichage des données (SMALL)
+    for i in range(len(data)):
+        item = data[i]
         tableau.setItem(i, 0, QTableWidgetItem(item["id"]))
         tableau.setItem(i, 1, QTableWidgetItem(item["nom"]))
         tableau.setItem(i, 2, QTableWidgetItem(item["categorie"]))
@@ -98,20 +105,32 @@ if choice in ["small", "Small"]:
         tableau.setItem(i, 4, QTableWidgetItem(str(item['polygones'])))
         tableau.setItem(i, 5, QTableWidgetItem(item["statut"]))
 
-    #Tri ordre croissant/décroissant
+    # Tri ordre croissant/décroissant
     tableau.setSortingEnabled(True)
 
 
-
-#Configuration de l'interface du tableau visuel (LARGE)
-elif choice in ["large", "Large"]:
+# Configuration de l'interface du tableau visuel (LARGE)
+elif choice == "large":
     tableau = QTableWidget()
-    tableau.setRowCount(len(data_large))
+    tableau.setRowCount(len(data))
     tableau.setColumnCount(10)
-    tableau.setHorizontalHeaderLabels(["id", "nom", "categorie", "format", "polygones", "statut", "auteur", 'date_creation', "prix", "taille_fichier"])
+    # Titres des en-têtes
+    tableau.setHorizontalHeaderLabels([
+        "id", 
+        "nom", 
+        "categorie", 
+        "format", 
+        "polygones", 
+        "statut", 
+        "auteur", 
+        'date_creation', 
+        "prix", 
+        "taille_fichier"
+    ])
 
-    for e in range(len(data_large)):
-        item = data_large[e]
+    # Affichage des données (LARGE)
+    for e in range(len(data)):
+        item = data[e]
         tableau.setItem(e, 0, QTableWidgetItem(item["id"]))
         tableau.setItem(e, 1, QTableWidgetItem(item["nom"]))
         tableau.setItem(e, 2, QTableWidgetItem(item["categorie"]))
@@ -123,50 +142,34 @@ elif choice in ["large", "Large"]:
         tableau.setItem(e, 8, QTableWidgetItem(str(item["prix"])))
         tableau.setItem(e, 9, QTableWidgetItem(str(item["taille_fichier"])))
 
-    #Tri ordre croissant/décroissant
+    # Tri ordre croissant/décroissant
     tableau.setSortingEnabled(True)
 
-else:
-    print("Please choose between Small or Large data")
 
-
-# noms = [(item["nom"]), (item["id"]), (item["categorie"]), (item["format"]), (str(item['polygones'])), (item["statut"]), (item["auteur"]), (str(item['date_creation'])), (str(item["prix"])), (str(item["taille_fichier"]))
-noms = [str(item["nom"])
-    for item in (data_small if choice.lower() == "small" else data_large)]
-
-completer = QCompleter(searchbar)
-completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-searchbar.setCompleter(completer)    
-
-# def update_display(self, text):
-#     search = text.strip().casefold()
-#     for widget in self.widgets:
-#         if widget.name.casefold().startswith(search):
-#             widget.show()
-#         else:
-#                 widget.hide()
-
+# Permet de rechercher mes valeurs dans tout les colonnes et rangées du tableau de données
 def update_display(text):
     search = text.strip().casefold()
 
+    # Cherche dans les rangées et ensuite dans les colonnes
     for row in range(tableau.rowCount()):
-        item = tableau.item(row, 1)
+        found = False
 
-        if item is not None and search in item.text().casefold():
-            tableau.setRowHidden(row, False)
-        else:
-            tableau.setRowHidden(row, True)
+        for column in range(tableau.columnCount()):
+            item = tableau.item(row, column)
 
-#Met à jour l'affichage quand un charactère est inscrit dans la barre de recherche
+            # Permet de rechercher le texte peu importe son emplacement et les majuscules/minuscules
+            if item is not None and search in item.text().casefold():
+                found = True
+                break
+
+        # Cache les valeurs qui ne sont pas recherchées
+        tableau.setRowHidden(row, not found)
+
+
+# Met à jour l'affichage quand un charactère est inscrit dans la barre de recherche
 searchbar.textChanged.connect(update_display)
 
 layout.addWidget(tableau)
 window.setCentralWidget(container)
 window.show()
 sys.exit(app.exec())    
-
-#liens utiles
-#https://doc.qt.io/qtforpython-6/tutorials/basictutorial/tablewidget.html
-#https://www.pythontutorial.net/pyqt/pyqt-qtablewidget/
-#https://www.pythonguis.com/tutorials/pyside6-widget-search-bar/
-
